@@ -6,19 +6,11 @@ import requests
 from dotenv import load_dotenv
 from openai import OpenAI
 
+# ============================= Agents Env Setup =============================
 ENV_PATH = Path(__file__).with_name(".env")
 load_dotenv(dotenv_path=ENV_PATH)
 
-PLAN = {
-    "goal": "Validate Student Enrolment App behavior using a local multi-agent workflow",
-    "checks": [
-        "/students",
-        "/students/{student_id}",
-        "/students/by-id",
-        "/students/by-subject",
-        "/ask"
-    ]
-}
+PROMPT_DIR = Path(__file__).with_name("prompts")
 
 DATABASE_NAME = Path(__file__).with_name("enrolment.db")
 
@@ -37,7 +29,21 @@ REVIEW_MODEL = os.getenv(
     "llama3.1:8b"
 )
 
+# ==================================== Plan ====================================
+PLAN = {
+    "goal": "Validate Student Enrolment App behavior using a local multi-agent workflow",
+    "db_plan": [
+        "Check student data quality (10 records, valid required fields)",
+        "Check subject-code search returns matching students"
+    ],
+    "endpoints_plan": [
+        "GET /students - get all students",
+        "GET /students/by-id - get student by id",
+        "GET /students/by-subject - get students by subject code"
+    ]
+}
 
+# ================================ Observe: Database ================================
 def validate_student(student):
     student_id, student_name, subject_code = student
 
@@ -72,11 +78,18 @@ def observe_data_quality():
     if len(students) != 10:
         return False, "Expected 10 students"
 
+    all_ok = True
+
     for student in students:
         ok, msg = validate_student(student)
+        status = "OK" if ok else f"FAIL: {msg}"
+        print(f"  Checked student_id={student[0]} -> {status}")
 
         if not ok:
-            return False, msg
+            all_ok = False
+
+    if not all_ok:
+        return False, "One or more student records failed validation"
 
     return True, "Data validation passed"
 
@@ -100,11 +113,18 @@ def observe_subject_search(subject_code):
     conn.close()
 
     if not students:
+        print(f"  Checked subject_code={subject_code} -> FAIL: no students found")
         return False, (
             f"No students found for subject code {subject_code}"
         )
 
     for student in students:
+        status = (
+            "OK" if student[2] == subject_code
+            else f"FAIL: unexpected subject code {student[2]}"
+        )
+        print(f"  Checked student_id={student[0]} -> {status}")
+
         if student[2] != subject_code:
             return False, (
                 f"Unexpected subject code found: {student[2]}"
@@ -115,99 +135,91 @@ def observe_subject_search(subject_code):
     )
 
 
-def observe_subject_search_no_match(subject_code):
+def get_sample_student():
     conn = sqlite3.connect(DATABASE_NAME)
     cursor = conn.cursor()
 
-    students = cursor.execute(
+    row = cursor.execute(
         """
-        SELECT
-            student_id,
-            student_name,
-            subject_code
+        SELECT student_id, subject_code
         FROM students
-        WHERE subject_code = ?
-        """,
-        (subject_code,)
-    ).fetchall()
+        LIMIT 1
+        """
+    ).fetchone()
 
     conn.close()
 
-    if students:
-        return False, (
-            f"Expected no students for subject code {subject_code}, "
-            f"but found {len(students)}"
-        )
+    return row
 
-    return True, (
-        f"No-match validation passed for {subject_code} "
-        f"(0 students found, as expected)"
+
+# ============================= Observe: Live Endpoints ==============================
+def observe_live_endpoints(sample_student):
+    results = []
+
+    student_id, subject_code = (
+        sample_student if sample_student else (None, None)
     )
 
+    def check(label, method, url, **kwargs):
+        try:
+            response = requests.request(
+                method, url, timeout=5, **kwargs
+            )
+            content_ok = bool(response.text and response.text.strip())
+            line = (
+                f"{label} -> HTTP {response.status_code}, "
+                f"content_ok={content_ok}"
+            )
+        except Exception as exc:
+            line = f"{label} -> error: {exc}"
 
-def observe_live_endpoints():
-    results = []
-    raw_evidence = []
+        print(f"  Checked {line}")
+        results.append(line)
 
-    try:
-        response = requests.get(
-            "http://127.0.0.1:5000/students",
-            timeout=5
-        )
-        results.append(f"/students -> HTTP {response.status_code}")
-        raw_evidence.append(
-            f"GET /students -> HTTP {response.status_code}\n"
-            f"Body:\n{response.text[:500]}"
-        )
-    except Exception as exc:
-        results.append(f"/students -> error: {exc}")
-        raw_evidence.append(f"GET /students -> error: {exc}")
+    check("/students", "GET", "http://127.0.0.1:5000/students")
 
-    try:
-        response = requests.get(
-            "http://127.0.0.1:5000/students/by-subject?subject_code=ASD101",
-            timeout=5
+    if student_id is not None:
+        check(
+            "/students/<student_id>",
+            "GET",
+            f"http://127.0.0.1:5000/students/{student_id}"
         )
-        results.append(
-            f"/students/by-subject (match) -> HTTP {response.status_code}"
+        check(
+            "/students/by-id",
+            "GET",
+            f"http://127.0.0.1:5000/students/by-id?student_id={student_id}"
         )
-        raw_evidence.append(
-            f"GET /students/by-subject?subject_code=ASD101 -> "
-            f"HTTP {response.status_code}\nBody:\n{response.text[:500]}"
-        )
-    except Exception as exc:
-        results.append(f"/students/by-subject (match) -> error: {exc}")
-        raw_evidence.append(
-            f"GET /students/by-subject?subject_code=ASD101 -> error: {exc}"
-        )
+    else:
+        skipped_id = "/students/<student_id> -> skipped: no sample student found"
+        skipped_by_id = "/students/by-id -> skipped: no sample student found"
+        print(f"  Checked {skipped_id}")
+        print(f"  Checked {skipped_by_id}")
+        results.append(skipped_id)
+        results.append(skipped_by_id)
 
-    try:
-        response = requests.get(
-            "http://127.0.0.1:5000/students/by-subject?subject_code=ABC999",
-            timeout=5
+    if subject_code is not None:
+        check(
+            "/students/by-subject",
+            "GET",
+            f"http://127.0.0.1:5000/students/by-subject?subject_code={subject_code}"
         )
-        results.append(
-            f"/students/by-subject (no-match) -> HTTP {response.status_code}"
-        )
-        raw_evidence.append(
-            f"GET /students/by-subject?subject_code=ABC999 -> "
-            f"HTTP {response.status_code}\nBody:\n{response.text[:500]}"
-        )
-    except Exception as exc:
-        results.append(f"/students/by-subject (no-match) -> error: {exc}")
-        raw_evidence.append(
-            f"GET /students/by-subject?subject_code=ABC999 -> error: {exc}"
-        )
+    else:
+        skipped_subject = "/students/by-subject -> skipped: no sample student found"
+        print(f"  Checked {skipped_subject}")
+        results.append(skipped_subject)
 
-    return results, raw_evidence
+    check(
+        "/ask",
+        "POST",
+        "http://127.0.0.1:5000/ask",
+        data={"question": "What does this app do?"}
+    )
+
+    return results
 
 
-def call_model(
-    model_name,
-    system_prompt,
-    user_prompt,
-    max_tokens=120
-):
+# =============================== Model Call Helper ================================
+def call_model( model_name, system_prompt, user_prompt, max_tokens=120):
     try:
         client = OpenAI(
             base_url=OLLAMA_BASE_URL,
@@ -244,138 +256,63 @@ def call_model(
         )
 
 
-def get_implementation_agent_advice(observe_message, raw_live_evidence):
-    prompt = (
-        "You are the IMPLEMENTATION AGENT for a Flask "
-        "Student Enrolment App.\n\n"
+# TASK 2: ======================== Implementation & Review Agents ===========================
 
-        "Current database fields:\n"
-        "- student_id\n"
-        "- student_name\n"
-        "- subject_code\n\n"
+def load_prompt(filename):
+    prompt_path = PROMPT_DIR / filename
+    return prompt_path.read_text(encoding="utf-8").strip()
 
-        "Important domain rule:\n"
-        "- subject_code is NOT unique.\n"
-        "- Multiple students may enrol in the same subject.\n"
-        "- Never recommend a unique constraint on subject_code.\n\n"
+# TASK 2: Implement the implementation-agent and review-agent advice
+# functions. Each must load its task/system prompt files, substitute the
+# evidence placeholders, and call call_model() with the correct model,
+# system prompt, task prompt, and max_tokens.
+def get_implementation_agent_advice(observe_message):
+    # TODO: Load "implementation_task_prompt.txt" and replace the
+    #       "{{VALIDATION_EVIDENCE}}" placeholder with observe_message.
 
-        "Current endpoints:\n"
-        "- GET /students\n"
-        "- GET /students/<student_id>\n"
-        "- GET /students/by-id\n"
-        "- GET /students/by-subject\n"
-        "- POST /ask\n\n"
+    system_prompt = load_prompt("implementation_system_prompt.txt")
+    task_prompt = load_prompt("implementation_task_prompt.txt")
 
-        f"Validation Summary:\n{observe_message}\n\n"
+    task_prompt = task_prompt.replace("{{VALIDATION_EVIDENCE}}", observe_message)
 
-        f"Raw Live Endpoint Responses (actual HTTP bodies, inspect "
-        f"these directly):\n{raw_live_evidence}\n\n"
-
-        "Task:\n"
-        "Review ONLY the existing subject-code search feature.\n\n"
-
-        "Inspect the raw response bodies above carefully. Look for "
-        "issues in how data is rendered into the response (e.g. "
-        "unescaped values, inconsistent formatting between the match "
-        "and no-match responses, missing content-type headers) or "
-        "issues in error handling. Base your finding only on what is "
-        "actually present in the raw responses shown above. If the app "
-        "is not responding, say: Unable to verify live endpoint "
-        "behavior.\n\n"
-
-        "Rules:\n"
-        "- Do not invent new database fields.\n"
-        "- Do not invent new endpoints.\n"
-        "- Do not modify endpoint contracts.\n"
-        "- Do not suggest new application features.\n"
-        "- Do not recommend subject_code uniqueness.\n"
-        "- Focus only on validation, error handling, "
-        "response formatting, or testing.\n"
-        "- If the raw evidence does not support an improvement, "
-        "write: No evidence-backed improvement identified.\n"
-        "- Return exactly two bullet points, or the no-evidence sentence.\n"
-    )
+    # TODO: Call call_model() using IMPLEMENTATION_MODEL, the loaded
+    #       "implementation_system_prompt.txt", the task prompt, and
+    #       max_tokens=120. Return its result.
 
     return call_model(
         IMPLEMENTATION_MODEL,
-        (
-            "You are a concise implementation assistant. "
-            "Follow the rules exactly. "
-            "Do not invent requirements."
-        ),
-        prompt,
-        max_tokens=150
+        system_prompt,
+        task_prompt,
+        max_tokens=120
     )
+    # pass
 
 
-def get_review_agent_advice(
-    implementation_message,
-    observe_message
-):
-    prompt = (
-        "Review ONLY the implementation-agent "
-        "recommendation.\n\n"
+def get_review_agent_advice(implementation_message, observe_message):
+    # TODO: Load "review_task_prompt.txt" and replace both the
+    #       "{{IMPLEMENTATION_RECOMMENDATION}}" and "{{VALIDATION_EVIDENCE}}"
+    #       placeholders.
 
-        f"Implementation Recommendation:\n"
-        f"{implementation_message}\n\n"
+    system_prompt = load_prompt("review_system_prompt.txt")
+    task_prompt = load_prompt("review_task_prompt.txt")
 
-        f"Validation Evidence:\n"
-        f"{observe_message}\n\n"
+    task_prompt = task_prompt.replace("{{IMPLEMENTATION_RECOMMENDATION}}", implementation_message)
+    task_prompt = task_prompt.replace("{{VALIDATION_EVIDENCE}}", observe_message)
 
-        "Before reviewing the recommendation, use the validation evidence "
-        "provided. Review only the implementation-agent recommendation and "
-        "identify evidence-backed risks or corrections. If no evidence-backed "
-        "risk exists, say so.\n\n"
-
-        "Application Scope:\n"
-        "- database fields: student_id, "
-        "student_name, subject_code\n"
-        "- endpoints: /students, "
-        "/students/<student_id>, "
-        "/students/by-id, "
-        "/students/by-subject, "
-        "/ask\n\n"
-
-        "Important domain rule:\n"
-        "- subject_code is NOT unique.\n"
-        "- Multiple students may enrol in the same subject.\n"
-        "- Any recommendation to make subject_code unique is invalid.\n\n"
-
-        "Rules:\n"
-        "- Do not invent new database fields.\n"
-        "- Do not invent new endpoints.\n"
-        "- Do not suggest new features.\n"
-        "- Identify only evidence-backed risks "
-        "or corrections.\n"
-        "- If no evidence-backed risk exists, say so.\n"
-        "- Return exactly three lines.\n\n"
-
-        "Format:\n"
-        "Risk: <one short sentence>\n"
-        "Correction: <one short sentence>\n"
-        "Retest: <one short sentence>\n\n"
-
-        "If no risk is supported by the evidence, use:\n"
-        "Risk: No evidence-backed risk identified.\n"
-        "Correction: No correction required.\n"
-        "Retest: Repeat validation after future changes.\n\n"
-
-        "- Maximum 35 words total.\n"
-        "- Do not explain reasoning.\n"
-    )
+    # TODO: Call call_model() using REVIEW_MODEL, the loaded
+    #       "review_system_prompt.txt", the task prompt, and
+    #       max_tokens=150. Return its result.
 
     return call_model(
         REVIEW_MODEL,
-        (
-            "You are a concise software review assistant. "
-            "Follow the output format exactly. "
-            "Do not invent requirements."
-        ),
-        prompt,
-        max_tokens=100
+        system_prompt,
+        task_prompt,
+        max_tokens=150
     )
+    # pass
 
 
+# =============================== Human Review & Adapt ================================
 def human_review():
     print()
     print("HUMAN REVIEW")
@@ -415,6 +352,7 @@ def adapt(decision):
         )
 
 
+# ================================= Main / Loop Entry ================================
 def main():
     print("=" * 60)
     print("ASD LAB 02 AGENTIC LOOP")
@@ -428,34 +366,30 @@ def main():
     print("ACT")
     print("Check local database records")
 
-    ok_data, msg_data = observe_data_quality()
-
     print()
-    print("OBSERVE")
+    print("OBSERVE: Database Check")
+    ok_data, msg_data = observe_data_quality()
     print(msg_data)
 
-    ok_subject, msg_subject = observe_subject_search(
-        "ASD101"
-    )
+    sample_student = get_sample_student()
+    sample_subject_code = sample_student[1] if sample_student else "ASD101"
 
+    print()
+    print("OBSERVE: Subject Search Check")
+    ok_subject, msg_subject = observe_subject_search(
+        sample_subject_code
+    )
     print(msg_subject)
 
-    ok_no_match, msg_no_match = observe_subject_search_no_match(
-        "ABC999"
-    )
-
-    print(msg_no_match)
-
-    live_results, raw_live_evidence = observe_live_endpoints()
+    print()
+    print("OBSERVE: Live Endpoint Check")
+    live_results = observe_live_endpoints(sample_student)
 
     observe_message = (
         f"{msg_data}. "
         f"{msg_subject}. "
-        f"{msg_no_match}. "
         f"Live endpoint checks: " + "; ".join(live_results)
     )
-
-    raw_live_evidence_text = "\n\n".join(raw_live_evidence)
 
     print()
     print("IMPLEMENTATION AGENT")
@@ -463,8 +397,7 @@ def main():
 
     implementation_advice, implementation_error = (
         get_implementation_agent_advice(
-            observe_message,
-            raw_live_evidence_text
+            observe_message
         )
     )
 
@@ -495,14 +428,20 @@ def main():
     else:
         print()
         print(review_error)
+
     print()
     print("HUMAN DECISION")
+
     decision = human_review()
+
     print()
     print(f"Decision: {decision}")
+
     adapt(decision)
+
     print()
     print("LOOP COMPLETE")
+
 
 if __name__ == "__main__":
     main()
