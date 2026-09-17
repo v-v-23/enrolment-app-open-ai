@@ -5,16 +5,13 @@ def print_prompt_map(mapping: dict[str, str]):
 
 
 def print_menu() -> None:
-  print()
-  print("=" * 70)
-  print("AGENTIC REVIEW MENU")
-  print("1 - DB")
-  print("2 - Endpoints")
-  print("3 - Architecture")
-  print("4 - DevOps")
-  print("0 - Exit")
-  print("=" * 70)
-
+  print("\nOptions:")
+  print("  1 - DB")
+  print("  2 - Endpoints")
+  print("  3 - Architecture")
+  print("  4 - DevOps")
+  print("  5 - MCP")  # Add this line
+  print("  0 - Exit")
 
 def print_result(title: str, text: str) -> None:
   print()
