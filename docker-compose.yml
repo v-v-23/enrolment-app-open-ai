@@ -7,8 +7,6 @@ services:
       - "8080:80"
     depends_on:
       - enrolment-service
-    networks:
-      - enrolment-network
     restart: unless-stopped
 
   enrolment-service:
@@ -22,12 +20,11 @@ services:
       DATABASE_SERVICE_URL: http://database-service:5002
       OLLAMA_BASE_URL: http://host.docker.internal:11434/v1
       OLLAMA_MODEL: qwen2.5:0.5b
+      MCP_ENABLED: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
       - database-service
-    networks:
-      - enrolment-network
     restart: unless-stopped
 
   database-service:
@@ -38,15 +35,7 @@ services:
       - "5002:5002"
     volumes:
       - database_data:/app/data
-    networks:
-      enrolment-network:
-        aliases:
-          - database-service
     restart: unless-stopped
 
 volumes:
   database_data:
-
-networks:
-  enrolment-network:
-    driver: bridge
