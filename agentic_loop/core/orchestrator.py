@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from collectors import architecture_collector, db_collector, devops_collector, endpoints_collector, mcp_collector, rag_collector
-from pipelines import architecture_pipeline, db_pipeline, devops_pipeline, endpoints_pipeline, mcp_pipeline, rag_pipeline
+from collectors import architecture_collector, db_collector, devops_collector, endpoints_collector, mcp_collector, multi_agent_collector, rag_collector
+from pipelines import architecture_pipeline, db_pipeline, devops_pipeline, endpoints_pipeline, mcp_pipeline, multi_agent_pipeline, rag_pipeline
 from config.review_config import ModeConfig
 from core.ai_runner import AIRunner
 from core.prompt_registry import PromptRegistry
@@ -14,6 +14,7 @@ COLLECTORS = {
     "devops": devops_collector.collect,
     "mcp": mcp_collector.collect,
     "rag": rag_collector.collect,
+    "multi_agent": multi_agent_collector.collect,
 }
 
 
@@ -181,6 +182,42 @@ def run_mode(mode: ModeConfig, app_dir: Path, repo_root: Path, prompts: PromptRe
     _stage(mode.label, "PROMPTS", "Loaded RAG review and reasoning prompts")
     _stage(mode.label, "LLM", "Running RAG review model")
     review_output, review_err = ai.call(review_system_prompt, review_user_prompt, review=True)
+    if review_err:
+        review_output = review_err
+        _stage(mode.label, "LLM", "Review model failed")
+    else:
+        _stage(mode.label, "LLM", "Review model complete")
+
+    _stage(mode.label, "DONE", "Review complete")
+
+    return (
+        f"OBSERVE: {evidence}\n\n"
+        f"IMPLEMENTATION: {implementation_output}\n"
+        f"REVIEW: {review_output}"
+    )
+
+  if mode.key == "multi_agent":
+    _stage(mode.label, "PROMPTS", f"Loading prompt family: {mode.prompt_family}")
+    task_prompt = prompts.read(mode.prompt_family, mode.implementation_prompts[0])
+    system_prompt = (
+        "You are a precise multi-agent workflow validator. "
+        "Use only supplied evidence and reply in at most 40 words."
+    )
+    implementation_user_prompt = multi_agent_pipeline.build_implementation_prompt(task_prompt, evidence)
+    _stage(mode.label, "PROMPTS", "Loaded multi-agent implementation prompt")
+
+    _stage(mode.label, "LLM", "Running multi-agent implementation model")
+    implementation_output, err = ai.call(system_prompt, implementation_user_prompt, review=False)
+    if err:
+        _stage(mode.label, "LLM", "Failed")
+        return f"MODEL FAILED: {err}"
+    _stage(mode.label, "LLM", "Multi-agent implementation model complete")
+
+    review_prompt_text = prompts.read(mode.prompt_family, mode.review_prompts[0])
+    review_user_prompt = multi_agent_pipeline.build_review_prompt(implementation_output, evidence)
+    _stage(mode.label, "PROMPTS", "Loaded multi-agent review prompt")
+    _stage(mode.label, "LLM", "Running multi-agent review model")
+    review_output, review_err = ai.call(review_prompt_text, review_user_prompt, review=True)
     if review_err:
         review_output = review_err
         _stage(mode.label, "LLM", "Review model failed")
