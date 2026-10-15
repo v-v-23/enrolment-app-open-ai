@@ -11,6 +11,7 @@ def print_menu() -> None:
   print("  3 - Architecture")
   print("  4 - DevOps")
   print("  5 - MCP")  # Add this line
+  print("  6 - RAG")
   print("  0 - Exit")
 
 def print_result(title: str, text: str) -> None:

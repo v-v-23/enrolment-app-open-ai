@@ -10,7 +10,7 @@
     <main class="app-shell">
         <header class="app-header">
             <h1>Student Enrolment App</h1>
-            <p>HTMX UI: Normal UI and AI Mode</p>
+            <p>HTMX UI: Normal UI, AI Mode, MCP, RAG, Multi-Agent</p>
         </header>
 
         <section class="tab-shell card">
@@ -18,6 +18,8 @@
                 <button class="tab-btn is-active" data-tab="normal" type="button">Normal UI</button>
                 <button class="tab-btn" data-tab="ai-mode" type="button">AI Mode</button>
                 <button class="tab-btn" data-tab="mcp" type="button">MCP</button>
+                <button class="tab-btn" data-tab="rag" type="button">RAG</button>
+                <button class="tab-btn" data-tab="multi-agent" type="button">Multi-Agent</button>
             </nav>
 
             <div class="tab-content">
@@ -25,6 +27,9 @@
                     title="Normal UI tab"></iframe>
                 <iframe id="tab-frame-ai-mode" class="tab-frame" src="tabs/ai-mode.html" title="AI Mode tab"></iframe>
                 <iframe id="tab-frame-mcp" class="tab-frame" src="tabs/mcp.html" title="MCP tab"></iframe>
+                <iframe id="tab-frame-rag" class="tab-frame" src="tabs/rag.html" title="RAG tab"></iframe>
+                <iframe id="tab-frame-multi-agent" class="tab-frame" src="tabs/multi-agent.html"
+                    title="Multi-Agent tab"></iframe>
             </div>
         </section>
     </main>
@@ -35,6 +40,8 @@
             normal: document.getElementById("tab-frame-normal"),
             "ai-mode": document.getElementById("tab-frame-ai-mode"),
             mcp: document.getElementById("tab-frame-mcp"),
+            rag: document.getElementById("tab-frame-rag"),
+            "multi-agent": document.getElementById("tab-frame-multi-agent"),
         };
 
         function activateTab(tabName) {
