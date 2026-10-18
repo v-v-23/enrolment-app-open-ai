@@ -76,9 +76,10 @@
         askForm.addEventListener("submit", (event) => {
             event.preventDefault();
             const formData = new URLSearchParams(new FormData(askForm));
-            renderIntoPanel("agent-result", "http://localhost:5001/ask", {
+            // renderIntoPanel("agent-result", "http://localhost:5001/ask", {
+            renderIntoPanel("agent-result", "/ask", { // Cloud deployment: relative path, proxied by nginx to enrolment-service
                 method: "POST",
-                headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: formData,
             });
         });
@@ -86,9 +87,11 @@
         askWithContextForm.addEventListener("submit", (event) => {
             event.preventDefault();
             const formData = new URLSearchParams(new FormData(askWithContextForm));
-            renderIntoPanel("context-result", "http://localhost:5001/ask-with-context", {
+            // renderIntoPanel("context-result", "http://localhost:5001/ask-with-context", {
+            renderIntoPanel("context-result", "/ask-with-context", { // Cloud deployment: relative path, proxied by nginx to enrolment-service
+
                 method: "POST",
-                headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: formData,
             });
         });
@@ -96,9 +99,11 @@
         architectureReviewForm.addEventListener("submit", (event) => {
             event.preventDefault();
             const formData = new URLSearchParams(new FormData(architectureReviewForm));
-            renderIntoPanel("architecture-result", "http://localhost:5001/architecture-review", {
+            // renderIntoPanel("architecture-result", "http://localhost:5001/architecture-review", {
+            renderIntoPanel("architecture-result", "/architecture-review", { // Cloud deployment: relative path, proxied by nginx to enrolment-service
+
                 method: "POST",
-                headers: {"Content-Type": "application/x-www-form-urlencoded"},
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
                 body: formData,
             });
         });

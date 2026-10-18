@@ -36,19 +36,24 @@
             <h2>MCP Tools</h2>
 
             <div class="feature-actions">
-                <button type="button" class="mcp-action" hx-post="http://localhost:5001/mcp/student-count"
-                    hx-target="#mcp-result" hx-swap="innerHTML">Get Student Count</button>
+                <!-- <button type="button" class="mcp-action" hx-post="http://localhost:5001/mcp/student-count"
+                    hx-target="#mcp-result" hx-swap="innerHTML">Get Student Count</button> -->
+                <button type="button" class="mcp-action" hx-post="/mcp/student-count" hx-target="#mcp-result"
+                    hx-swap="innerHTML">Get Student Count</button>
+                <!-- Cloud deployment: relative path, proxied by nginx to enrolment-service -->
+
+
             </div>
 
-            <form id="mcp-subject-form" class="feature-form mcp-action"
-                hx-post="http://localhost:5001/mcp/students-by-subject" hx-target="#mcp-result" hx-swap="innerHTML">
+            <form id="mcp-subject-form" class="feature-form" hx-post="/mcp/students-by-subject" hx-target="#mcp-result"
+                hx-swap="innerHTML"> <!-- Cloud deployment: relative path, proxied by nginx to enrolment-service -->
                 <label for="mcp_subject_code">MCP: Students by Subject</label>
                 <input id="mcp_subject_code" name="subject_code" type="text" placeholder="Example: ASD101">
                 <button type="submit" class="mcp-action">Run Tool</button>
             </form>
 
-            <form id="mcp-project-form" class="feature-form mcp-action"
-                hx-post="http://localhost:5001/mcp/project-files" hx-target="#mcp-result" hx-swap="innerHTML">
+            <form id="mcp-project-form" class="feature-form" hx-post="/mcp/project-files" hx-target="#mcp-result"
+                hx-swap="innerHTML"> <!-- Cloud deployment: relative path, proxied by nginx to enrolment-service -->
                 <label for="mcp_directory_path">MCP: Project Files</label>
                 <input id="mcp_directory_path" name="directory_path" type="text" value="..">
                 <button type="submit" class="mcp-action">Run Tool</button>

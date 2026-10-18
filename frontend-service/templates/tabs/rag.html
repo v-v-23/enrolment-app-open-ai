@@ -43,7 +43,8 @@
     </section>
 
     <script>
-        const apiBase = "http://localhost:5001";
+        // const apiBase = "http://localhost:5001";
+        const apiBase = ""; // Cloud deployment: relative path, proxied by nginx to enrolment-service
         const output = document.getElementById("rag-results");
         const ragModeToggle = document.getElementById("rag-mode-toggle");
         const ragModeState = document.getElementById("rag-mode-state");
