@@ -68,6 +68,27 @@ def build_mode_config() -> dict[str, ModeConfig]:
       implementation_prompts=("implementation/multi_agent_implementation_prompt.txt",),
       review_prompts=("review/multi_agent_review_prompt.txt",),
     ),
+    "pre_test": ModeConfig(
+      key="pre_test",
+      label="Pre-Test Review",
+      prompt_family="lab11",
+      implementation_prompts=("implementation/pre_test_implementation_prompt.txt",),
+      review_prompts=("review/pre_test_review_prompt.txt",),
+    ),
+    "cicd_test": ModeConfig(
+      key="cicd_test",
+      label="CI/CD Test Review",
+      prompt_family="lab11",
+      implementation_prompts=("implementation/cicd_test_implementation_prompt.txt",),
+      review_prompts=("review/cicd_test_review_prompt.txt",),
+    ),
+    "deployment": ModeConfig(
+      key="deployment",
+      label="Deployment Review",
+      prompt_family="lab11",
+      implementation_prompts=("implementation/deployment_implementation_prompt.txt",),
+      review_prompts=("review/deployment_review_prompt.txt",),
+    ),
   }
 
 

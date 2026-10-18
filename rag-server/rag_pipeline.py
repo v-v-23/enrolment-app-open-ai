@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import sqlite3
 import time
@@ -10,6 +11,8 @@ from typing import Any
 
 import chromadb
 import requests
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent
 APP_DIR = BASE_DIR.parent
@@ -90,9 +93,8 @@ def reset_collection() -> None:
     client = chromadb.PersistentClient(path=str(CHROMA_PATH))
     try:
         client.delete_collection(name=COLLECTION_NAME)
-    except Exception:
-        pass
-    _collection = client.get_or_create_collection(name=COLLECTION_NAME)
+    except Exception as exc:
+        logger.warning("Could not delete existing collection %s: %s", COLLECTION_NAME, exc)
 
 
 def append_audit(

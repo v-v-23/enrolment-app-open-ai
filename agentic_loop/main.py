@@ -25,6 +25,9 @@ def _menu_choice_to_key(choice: str) -> str | None:
     "5": "mcp", 
     "6": "rag",
     "7": "multi_agent",
+    "8": "pre_test",
+    "9": "cicd_test",
+    "10": "deployment",
   }.get(choice)
 
 
@@ -37,6 +40,9 @@ def _print_mode_mapping(app_dir: Path) -> None:
     "MCP": app_dir / "prompts" / "lab7",  # Add this line
     "RAG": app_dir / "prompts" / "lab8",
     "Multi-Agent": app_dir / "prompts" / "lab10",
+    "Pre-Test Review": app_dir / "prompts" / "lab11",
+    "CI/CD Test Review": app_dir / "prompts" / "lab11",
+    "Deployment Review": app_dir / "prompts" / "lab11",
   }
   print_prompt_map({key: str(path) for key, path in prompt_map.items()})
 

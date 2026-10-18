@@ -55,9 +55,11 @@ def status():
     ), 200
 
 
+# lines 58-64
 if __name__ == "__main__":
+    debug_mode = os.getenv("FLASK_DEBUG", "false").lower() == "true"
     app.run(
-        host="0.0.0.0",
+        host="0.0.0.0",  # noqa: S104 - container needs to bind all interfaces
         port=int(os.getenv("PORT", "5004")),
-        debug=True
+        debug=debug_mode,
     )

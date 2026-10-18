@@ -37,7 +37,7 @@ REVIEWER_MAX_TOKENS = int(
 
 client = OpenAI(
     base_url=OLLAMA_BASE_URL,
-    api_key="ollama",
+    api_key="ollama",  # pragma: allowlist secret
     timeout=OLLAMA_TIMEOUT_SECONDS
 )
 

@@ -3,3 +3,4 @@ flask-cors==4.0.1
 requests==2.32.3
 openai
 python-dotenv
+PyJWT>=2.11.0  # Lab 11: JWT token auth (>=2.11.0 for jwt.InsecureKeyLengthWarning)

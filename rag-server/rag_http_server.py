@@ -71,7 +71,8 @@ class RAGHandler(BaseHTTPRequestHandler):
 
 
 def main():
-    host = "0.0.0.0"
+    # line 74
+    host = "0.0.0.0"  # noqa: S104 - container needs to bind all interfaces
     port = int(os.getenv("PORT", "5003"))
     server = ThreadingHTTPServer((host, port), RAGHandler)
     print(f"RAG HTTP server running on {host}:{port}")
