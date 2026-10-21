@@ -11,6 +11,7 @@ echo "=== Lab 11 Environment Setup ==="
 echo "Registering required resource providers (skips if already registered)..."
 az provider register --namespace Microsoft.App --wait
 az provider register --namespace Microsoft.OperationalInsights --wait
+az provider register --namespace Microsoft.ContainerRegistry --wait
 
 EXISTING_REGISTRY=$(az group show --name "$RESOURCE_GROUP" --query "tags.registryName" -o tsv 2>/dev/null || true)
 
